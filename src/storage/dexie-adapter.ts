@@ -48,37 +48,51 @@ export class DexieStorageAdapter implements StorageAdapter {
   }
 
   async saveCard(card: any): Promise<string> {
-    const id = card.id || uuid()
-    const now = nowISO()
-    const full: Card = {
-      id,
-      title: card.title,
-      content: card.content || null,
-      cover_image: card.cover_image || null,
-      status: card.status || 'pending',
-      priority: card.priority || 'medium',
-      tags: card.tags || [],
-      reminder_date: card.reminder_date || null,
-      due_date: card.due_date || null,
-      created_at: card.created_at || now,
-      updated_at: now,
-      owner_id: card.owner_id || 'me',
-      visibility: card.visibility || 'private',
+    try {
+      const id = card.id || uuid()
+      const now = nowISO()
+      const full: Card = {
+        id,
+        title: card.title,
+        content: card.content || null,
+        cover_image: card.cover_image || null,
+        status: card.status || 'pending',
+        priority: card.priority || 'medium',
+        tags: card.tags || [],
+        reminder_date: card.reminder_date || null,
+        due_date: card.due_date || null,
+        created_at: card.created_at || now,
+        updated_at: now,
+        owner_id: card.owner_id || 'me',
+        visibility: card.visibility || 'private',
+      }
+      await db.cards.put(full)
+
+      // Update search index
+      await this.updateSearchIndex('card', id, `${full.title} ${tiptapToText(full.content)}`)
+
+      return id
+    } catch (e: any) {
+      console.error('[DexieAdapter] saveCard failed:', e)
+      throw new Error(`保存卡片失败: ${e?.message || e}`)
     }
-    await db.cards.put(full)
-
-    // Update search index
-    await this.updateSearchIndex('card', id, `${full.title} ${tiptapToText(full.content)}`)
-
-    return id
   }
 
   async updateCard(id: string, patch: Partial<Card>): Promise<void> {
-    const now = nowISO()
-    await db.cards.update(id, { ...patch, updated_at: now })
-    const card = await db.cards.get(id)
-    if (card) {
-      await this.updateSearchIndex('card', id, `${card.title} ${tiptapToText(card.content)}`)
+    try {
+      const now = nowISO()
+      const updates: any = { ...patch, updated_at: now }
+      const result = await db.cards.update(id, updates)
+      if (result === 0) {
+        throw new Error(`卡片不存在 (id: ${id})，可能数据已被清除`)
+      }
+      const card = await db.cards.get(id)
+      if (card) {
+        await this.updateSearchIndex('card', id, `${card.title} ${tiptapToText(card.content)}`)
+      }
+    } catch (e: any) {
+      console.error('[DexieAdapter] updateCard failed:', e)
+      throw new Error(`更新卡片失败: ${e?.message || e}`)
     }
   }
 

@@ -124,15 +124,20 @@ const columns = computed(() => {
 async function quickRecord() {
   const text = quickText.value.trim()
   if (!text) return
-  await cardsStore.createCard({
-    id: uuid(),
-    title: text.length > 30 ? text.substring(0, 30) + '…' : text,
-    content: null,
-    status: 'pending',
-    priority: 'medium',
-    tags: [],
-  })
-  quickText.value = ''
+  try {
+    await cardsStore.createCard({
+      id: uuid(),
+      title: text.length > 30 ? text.substring(0, 30) + '…' : text,
+      content: null,
+      status: 'pending',
+      priority: 'medium',
+      tags: [],
+    })
+    quickText.value = ''
+  } catch (e: any) {
+    console.error('[HomeView] quickRecord failed:', e)
+    alert('保存失败：' + (e?.message || '未知错误'))
+  }
 }
 
 onMounted(async () => {

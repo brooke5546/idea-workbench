@@ -256,57 +256,72 @@ async function createNewTag() {
   showNewTag.value = false
 }
 
+const saving = ref(false)
+const saveError = ref('')
+
 async function save() {
   if (!form.title.trim()) return
+  if (saving.value) return
 
-  const dueDate = form.due_date_local ? new Date(form.due_date_local).toISOString() : null
-  const reminderDate = form.reminder_date_local ? new Date(form.reminder_date_local).toISOString() : null
+  saving.value = true
+  saveError.value = ''
 
-  if (isEdit.value) {
-    // Update
-    await storage.updateCard(route.params.id as string, {
-      title: form.title.trim(),
-      content: form.content_text ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: form.content_text }] }] } : null,
-      cover_image: form.cover_image,
-      tags: form.tags,
-      status: form.status,
-      priority: form.priority,
-      due_date: dueDate,
-      reminder_date: reminderDate,
-    })
+  try {
+    const dueDate = form.due_date_local ? new Date(form.due_date_local).toISOString() : null
+    const reminderDate = form.reminder_date_local ? new Date(form.reminder_date_local).toISOString() : null
 
-    // Save attachments
-    for (const blob of newAttachments.value) {
-      await storage.saveAttachment({
-        card_id: route.params.id as string,
-        blob,
+    if (isEdit.value) {
+      // Update
+      await storage.updateCard(route.params.id as string, {
+        title: form.title.trim(),
+        content: form.content_text ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: form.content_text }] }] } : null,
+        cover_image: form.cover_image,
+        tags: form.tags,
+        status: form.status,
+        priority: form.priority,
+        due_date: dueDate,
+        reminder_date: reminderDate,
       })
-    }
 
-    router.replace(`/cards/${route.params.id}`)
-  } else {
-    // Create
-    const id = uuid()
-    await storage.saveCard({
-      id,
-      title: form.title.trim(),
-      content: form.content_text ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: form.content_text }] }] } : null,
-      cover_image: form.cover_image,
-      tags: form.tags,
-      status: form.status,
-      priority: form.priority,
-      due_date: dueDate,
-      reminder_date: reminderDate,
-    })
+      // Save attachments
+      for (const blob of newAttachments.value) {
+        await storage.saveAttachment({
+          card_id: route.params.id as string,
+          blob,
+        })
+      }
 
-    for (const blob of newAttachments.value) {
-      await storage.saveAttachment({
-        card_id: id,
-        blob,
+      router.replace(`/cards/${route.params.id}`)
+    } else {
+      // Create
+      const id = uuid()
+      await storage.saveCard({
+        id,
+        title: form.title.trim(),
+        content: form.content_text ? { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: form.content_text }] }] } : null,
+        cover_image: form.cover_image,
+        tags: form.tags,
+        status: form.status,
+        priority: form.priority,
+        due_date: dueDate,
+        reminder_date: reminderDate,
       })
-    }
 
-    router.replace(`/cards/${id}`)
+      for (const blob of newAttachments.value) {
+        await storage.saveAttachment({
+          card_id: id,
+          blob,
+        })
+      }
+
+      router.replace(`/cards/${id}`)
+    }
+  } catch (e: any) {
+    console.error('[CardEditor] Save failed:', e)
+    saveError.value = e?.message || '保存失败，请稍后重试'
+    alert('保存失败：' + (e?.message || '未知错误'))
+  } finally {
+    saving.value = false
   }
 }
 
