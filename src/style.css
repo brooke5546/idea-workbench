@@ -69,3 +69,11 @@
   width: 0;
   height: 0;
 }
+
+/* 屏蔽 Netlify 横幅 */
+#netlify,
+[class*="netlify"],
+iframe[src*="netlify"] {
+  display: none !important;
+  visibility: hidden !important;
+}
